@@ -5,6 +5,7 @@ from carSink import CarSink
 from carGenerator import CarGeneratorModel
 from intersectionRoad import IntersectionRoad, IntersectionRoadState
 from roadsection import RoadSectionModel, RoadSectionState
+from pedestrianCrossing import PedestrianCrossingModel
 from trafficInterface import FLUID
 
 class SimpleRoadModel(CoupledDEVS):
@@ -66,55 +67,68 @@ class SimpleRoadModel(CoupledDEVS):
         
         carGeneratorDestinations = {1 : [2], 2 : [1]}
 
+        # / Connect Gen/Sink to intersect
+        # // Gen/Sink LM to IntersectionLM
         carGeneratorLM = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=1, pLocal=0.7, carDestinationMap = carGeneratorDestinations[1]))
-        carSinkRM = self.addSubModel(CarSink(output_file='outfileR.csv'))
-        carGeneratorRM = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=2, pLocal=0.7, carDestinationMap = carGeneratorDestinations[2]))
         carSinkLM = self.addSubModel(CarSink(output_file='outfileL.csv'))
         intersectionRoadLM = self.addSubModel(IntersectionRoad(name="LM", 
                                                              state=IntersectionRoadState(
                                                                  destinationMap = intersectionFilterMap["LM"])))
+        
+        self.connectPorts(carGeneratorLM.car_out, intersectionRoadLM.IN_CAR_LEFT)
+        self.connectPorts(intersectionRoadLM.OUT_CAR_LEFT, carSinkLM.in_car)
+
+        # // Gen/Sink RM to Intersection RM
+        carSinkRM = self.addSubModel(CarSink(output_file='outfileR.csv'))
+        carGeneratorRM = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=2, pLocal=0.7, carDestinationMap = carGeneratorDestinations[2]))
         intersectionRoadRM = self.addSubModel(IntersectionRoad(name="RM", 
                                                              state=IntersectionRoadState(
                                                                  destinationMap = intersectionFilterMap["RM"])))
+    
+        self.connectPorts(carGeneratorRM.car_out, intersectionRoadRM.IN_CAR_RIGHT)
+        self.connectPorts(intersectionRoadRM.OUT_CAR_RIGHT, carSinkRM.in_car)
+
+        # / Connect Main Street to Intersections
+        # // LR traffic
         sectionMain_LR = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Main_LR", max_speed=30, length=250, initial_state=FLUID), "Main_LR"))
+        
+        self.connectPorts(intersectionRoadLM.OUT_CAR_RIGHT, sectionMain_LR.IN_CAR) 
+        self.connectPorts(sectionMain_LR.OUT_CAR, intersectionRoadRM.IN_CAR_LEFT) 
+
+        # // RL traffic
         sectionMain_RL = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Main_RL", max_speed=30, length=250, initial_state=FLUID), "Main_RL"))
         
+        self.connectPorts(intersectionRoadRM.OUT_CAR_LEFT, sectionMain_RL.IN_CAR) 
+        self.connectPorts(sectionMain_RL.OUT_CAR, intersectionRoadLM.IN_CAR_RIGHT) 
+        
+        # / Connect top parallel to intersections
+        # // LR traffic
         sectionParallel_T1_LR = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Parallel_T1_LR", max_speed=70, length=450, initial_state=FLUID), "Parallel_T1_LR"))
+        
+        self.connectPorts(intersectionRoadLM.OUT_CAR_TOP, sectionParallel_T1_LR.IN_CAR)
+        self.connectPorts(sectionParallel_T1_LR.OUT_CAR, intersectionRoadRM.IN_CAR_TOP)
+
+        # // RL traffic
         sectionParallel_T1_RL = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Parallel_T1_RL", max_speed=70, length=450, initial_state=FLUID), "Parallel_T1_RL"))
         
+        self.connectPorts(intersectionRoadRM.OUT_CAR_TOP, sectionParallel_T1_RL.IN_CAR)
+        self.connectPorts(sectionParallel_T1_RL.OUT_CAR, intersectionRoadLM.IN_CAR_TOP)
+
+        # / Connect bot parallel to intersections
+        # // LR traffic
         sectionParallel_B1_LR = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Parallel_B1_LR", max_speed=70, length=450, initial_state=FLUID), "Parallel_B1_LR"))
+        
+        self.connectPorts(intersectionRoadLM.OUT_CAR_BOT, sectionParallel_B1_LR.IN_CAR)
+        self.connectPorts(sectionParallel_B1_LR.OUT_CAR, intersectionRoadRM.IN_CAR_BOT)
+
+        # // RL traffic
         sectionParallel_B1_RL = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="Parallel_B1_RL", max_speed=70, length=450, initial_state=FLUID), "Parallel_B1_RL"))
         
-        
-        # Left Generator/Sink combination
-        self.connectPorts(carGeneratorLM.car_out, intersectionRoadLM.IN_CAR_LEFT)
-        self.connectPorts(intersectionRoadLM.OUT_CAR_LEFT, carSinkLM.in_car)
-        
-        # Intersection LeftMid
-        self.connectPorts(intersectionRoadLM.OUT_CAR_TOP, sectionParallel_T1_LR.IN_CAR)
-        self.connectPorts(intersectionRoadLM.OUT_CAR_BOT, sectionParallel_B1_LR.IN_CAR)
-        self.connectPorts(intersectionRoadLM.OUT_CAR_RIGHT, sectionMain_LR.IN_CAR) 
-
-        self.connectPorts(sectionParallel_T1_RL.OUT_CAR, intersectionRoadLM.IN_CAR_TOP)
         self.connectPorts(sectionParallel_B1_RL.OUT_CAR, intersectionRoadLM.IN_CAR_BOT)
-        self.connectPorts(sectionMain_RL.OUT_CAR, intersectionRoadLM.IN_CAR_RIGHT) 
-
-        # Intersection RightMid
-        self.connectPorts(intersectionRoadRM.OUT_CAR_TOP, sectionParallel_T1_RL.IN_CAR)
-        self.connectPorts(intersectionRoadRM.OUT_CAR_BOT, sectionParallel_B1_RL.IN_CAR)
-        self.connectPorts(intersectionRoadRM.OUT_CAR_LEFT, sectionMain_RL.IN_CAR) 
-
-        self.connectPorts(sectionParallel_T1_LR.OUT_CAR, intersectionRoadRM.IN_CAR_TOP)
-        self.connectPorts(sectionParallel_B1_LR.OUT_CAR, intersectionRoadRM.IN_CAR_BOT)
-        self.connectPorts(sectionMain_LR.OUT_CAR, intersectionRoadRM.IN_CAR_LEFT) 
-
-        # Left Generator/Sink Combination
-        self.connectPorts(carGeneratorRM.car_out, intersectionRoadRM.IN_CAR_RIGHT)
-        self.connectPorts(intersectionRoadRM.OUT_CAR_RIGHT, carSinkRM.in_car)
-        
+        self.connectPorts(intersectionRoadRM.OUT_CAR_BOT, sectionParallel_B1_RL.IN_CAR) 
