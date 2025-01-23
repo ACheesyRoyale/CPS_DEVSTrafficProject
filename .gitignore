@@ -29,3 +29,7 @@ Project/__pycache__/pedestrianCrossing.cpython-311.pyc
 Project/__pycache__/roadsection.cpython-311.pyc
 Project/__pycache__/trafficInterface.cpython-311.pyc
 outfile.csv
+outfileL.csv
+outfileR.csv
+outfileRM.csv
+outfileLM.csv

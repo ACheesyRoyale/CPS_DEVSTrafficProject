@@ -25,7 +25,7 @@ class CarSink(AtomicDEVS):
             #print("carSink extTransition | Car exited.", car.identifier, car_time_in_system)
             
             # Write car data to csv file
-            data = {'Id': [car.identifier], 'Exit Time': [self.exit_time], 'Distance': [car.distance_done], 'Travel Time': [car_time_in_system], 'local': [car.isLocal]}
+            data = {'Id': [car.identifier], 'CT': [car.creation_time] ,'Exit Time': [self.exit_time], 'Distance': [car.distance_done], 'Travel Time': [car_time_in_system], 'local': [car.isLocal], 'destination': [car.destination]}
             df = pd.DataFrame(data)
             df.to_csv(self.of, mode='a', index=False, header=False)
 
