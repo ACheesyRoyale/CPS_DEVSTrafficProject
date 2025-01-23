@@ -2,9 +2,9 @@
 from pypdevs.simulator import Simulator
 
 # Import the model to be simulated
-from Exercise_1 import SimpleRoadModel
+#from Exercise_1 import SimpleRoadModel
 #from Exercise_2 import SimpleRoadModel
-#from Exercise_3 import SimpleRoadModel
+from Exercise_3 import SimpleRoadModel
 
 #    ======================================================================
 

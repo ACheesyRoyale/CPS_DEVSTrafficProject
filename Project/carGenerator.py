@@ -7,6 +7,7 @@ import trafficInterface
 from trafficInterface import JAMMED, IDLE, GENERATING
 
 import numpy as np
+from random import randint
 
 class CarGeneratorState1:
     def __init__(self, identifier, num_cars, time_next_car, useFixedTime):
@@ -63,7 +64,7 @@ class CarGeneratorState1:
         return np.random.poisson(self.idleTime)
 
 class CarGeneratorState:
-    def __init__(self, identifier, num_cars, time_next_car, useFixedTime, percentLocal = 0):
+    def __init__(self, identifier, num_cars, time_next_car, useFixedTime, destinationMap, percentLocal = 0):
         self.state = num_cars
         self.car_identifier = identifier * 1000 + -1
         self.time_next_car = time_next_car
@@ -73,6 +74,7 @@ class CarGeneratorState:
         self.car_creation_timer = 0.0
         self.isJammed = False
         self.percentLocal = percentLocal
+        self.destinations = destinationMap
 
     def internal(self):
         self.state -= 1
@@ -110,7 +112,8 @@ class CarGeneratorState:
             self.next_time = 0
             self.car_identifier += 1
             isLocal = bool(np.random.choice([0,1], p=[1-self.percentLocal, self.percentLocal]))
-            return Car(speed_adapter=1, creation_time=self.car_creation_timer, id=self.car_identifier, isLocal=isLocal)
+            i_dest = randint(0, len(self.destinations)-1)
+            return Car(speed_adapter=1, creation_time=self.car_creation_timer, id=self.car_identifier, isLocal=isLocal, destination=self.destinations[i_dest])
     
     def solve_jam_control(self, jam_control, elapsed):
         # traffic jam blocks generator.
@@ -126,12 +129,12 @@ class CarGeneratorState:
 
 
 class CarGeneratorModel(AtomicDEVS):
-    def __init__(self, time_next_car, identifier, num_cars = INFINITY, useFixedTime = True, pLocal = 0):
+    def __init__(self, time_next_car, identifier, num_cars = INFINITY, useFixedTime = True, pLocal = 0, carDestinationMap = []):
         AtomicDEVS.__init__(self, "CarGenerator"+str(identifier))
         self.car_out = self.addOutPort("car_out")
         self.IN_NEXT_JAM = self.addInPort("next_section_jam")
 
-        self.state = CarGeneratorState(identifier, num_cars, time_next_car, useFixedTime, percentLocal=pLocal)
+        self.state = CarGeneratorState(identifier, num_cars, time_next_car, useFixedTime, percentLocal=pLocal, destinationMap = carDestinationMap)
         if not isinstance(self.state, CarGeneratorState):
             print("error init.")
             exit(1)

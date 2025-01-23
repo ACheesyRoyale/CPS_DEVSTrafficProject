@@ -1,8 +1,9 @@
 from pypdevs.DEVS import *
 from pypdevs.infinity import INFINITY
+from random import choice as rnChoice
 
 class IntersectionRoadState:
-    def __init__(self):
+    def __init__(self, destinationMap = {}):
         self.dict_cars = {
             "T": [],
             "B":[],
@@ -10,6 +11,7 @@ class IntersectionRoadState:
             "L":[]
         }
         self.carInIntersection = False
+        self.destMap = destinationMap
 
     def calculate_time_advance(self):
         if self.carInIntersection:
@@ -40,9 +42,21 @@ class IntersectionRoadState:
             self.dict_cars[outgoingDirection].append(car)
     
     def filterCars(self, incomingDir, car):
-        outDir = self.sentAllNorth()
+        outDir = self.carFilter(incomingDir, car)
         return outDir
-        
+    
+    def carFilter(self, incomingDir, car):
+        print(car.destination)
+        print(self.destMap)
+        destinationDirections = self.destMap[car.destination]
+        print(destinationDirections)
+        localDirections = list(destinationDirections[0])
+        nonLocalDirections = list(destinationDirections[1])
+        if car.isLocal: 
+            return rnChoice(localDirections)
+        else:
+            return rnChoice(nonLocalDirections)
+
     def sentAllNorth(self):
         return "T"
 
@@ -52,12 +66,14 @@ class IntersectionRoad(AtomicDEVS):
             - Traffic Control is delegated to separated class (IntersectionTrafficLight).
         Filtering is based on 'local' or 'passing' attribute of incoming car.
     """
-    def __init__(self, name):
+    def __init__(self, name, state):
         AtomicDEVS.__init__(self, name)
-        self.state = IntersectionRoadState()
-        if not isinstance(self.state, IntersectionRoadState):
+        
+        if not isinstance(state, IntersectionRoadState):
             print("error in init of roadSectionModel")
             exit(1)
+
+        self.state = state
         self.IN_CAR_TOP = self.addInPort("incoming_car_TOP")
         self.IN_CAR_BOT = self.addInPort("incoming_car_BOT")
         self.IN_CAR_RIGHT = self.addInPort("incoming_car_RIGHT")
