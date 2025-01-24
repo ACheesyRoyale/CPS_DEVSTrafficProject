@@ -25,7 +25,7 @@ sim = Simulator(trafficSystem)
 
 # 3. Perform all necessary configurations, with the minimal kernel, only setTerminationTime is supported.
 #    e.g. to simulate until simulation time 400.0 is reached
-sim.setTerminationTime(3000.0)
+sim.setTerminationTime(300.0)
 
 #    ======================================================================
 

@@ -7,6 +7,7 @@ from intersectionRoad import IntersectionRoad, IntersectionRoadState
 from roadsection import RoadSectionModel, RoadSectionState
 from pedestrianCrossing import PedestrianCrossingModel
 from trafficInterface import FLUID
+from intersectionLightSimple import SimpleIntersectionLightModel
 
 class SimpleRoadModel(CoupledDEVS):
     def __init__(self):
@@ -16,7 +17,9 @@ class SimpleRoadModel(CoupledDEVS):
         #self.testIntersectionRoad()
         # self.testFilter()
         # self.testMainTwoParallelBiDirectionNoLights()
-        self.testExtendedCityNoLights()
+        # self.testExtendedCityNoLights()
+        # self.testExtendedCitySimpleLights()
+        self.testIntersectionLight()
 
     def testIntersectionRoad(self):
         carGeneratorR = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=1, pLocal=0.7))
@@ -483,3 +486,16 @@ class SimpleRoadModel(CoupledDEVS):
 
         # V. Control Connect
         # TODO
+
+    def testIntersectionLight(self):
+        intersectionLight = self.addSubModel(SimpleIntersectionLightModel(hor_t_hGreen=140, hor_t_hYellow=30, hor_t_hRed=90))
+        carGeneratorL = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=1, pLocal=0.7))
+
+        sectionCenter_Left_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_L_LR", max_speed=50, length=200, initial_state=FLUID), "RoadC_L_LR"))
+        
+        # IV. Car connect
+        self.connectPorts(carGeneratorL.car_out, sectionCenter_Left_LR.IN_CAR)
+        self.connectPorts(intersectionLight.OUT_JAM_L, carGeneratorL.IN_NEXT_JAM)
+
+ 
