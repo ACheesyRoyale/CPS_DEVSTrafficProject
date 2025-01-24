@@ -18,8 +18,8 @@ class SimpleRoadModel(CoupledDEVS):
         # self.testFilter()
         # self.testMainTwoParallelBiDirectionNoLights()
         # self.testExtendedCityNoLights()
-        # self.testExtendedCitySimpleLights()
-        self.testIntersectionLight()
+        self.testExtendedCitySimpleLights()
+        # self.testIntersectionLight()
 
     def testIntersectionRoad(self):
         carGeneratorR = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=1, pLocal=0.7))
@@ -497,5 +497,391 @@ class SimpleRoadModel(CoupledDEVS):
         # IV. Car connect
         self.connectPorts(carGeneratorL.car_out, sectionCenter_Left_LR.IN_CAR)
         self.connectPorts(intersectionLight.OUT_JAM_L, carGeneratorL.IN_NEXT_JAM)
+
+    def testExtendedCitySimpleLights(self):
+       # generatorR1 = 2, generatorL1 = 1
+
+        ## map : Intersection : {destination : [Local, NotLocal]}
+        # intersectionFilterMap = {"LM" : {2: ["R", "TB"], 1: ["L", "L"]}, 
+        #                          "RM": {2: ["R", "R"], 1: ["L", "TB"]},}
+        # cars generated at fixed interval
+        genUseFixedTime = True
+        # average interval between generated cars
+        genAverageTime = 100
+        # percent (0 to 1) of local cars
+        genPrecLocal = 0.5
+
+        # length in meters of various sections
+        lenCenter_L = 800
+        lenCenter_R = 800
+        # horizontal mid sections same length
+        lenCenter_M = 200
+        lenTop_H = lenCenter_M
+        lenBot_H = lenCenter_M
+        # vertical sections same length
+        lenVert_LT = 50
+        lenVert_LB = 50
+        lenVert_RT = 50
+        lenVert_RB = 50
+        # outer loops of city create block same size as inner blocks
+        lenBot_B = lenCenter_M + 50 + 50
+        lenTop_T = lenCenter_M + 50 + 50
+
+        t_LT_green, t_LT_yellow, t_LT_red = 140, 30, 100
+        t_LM_green, t_LM_yellow, t_LM_red = 140, 30, 100
+        t_LB_green, t_LB_yellow, t_LB_red = 140, 30, 100
+
+        t_RT_green, t_RT_yellow, t_RT_red = 140, 30, 100
+        t_RM_green, t_RM_yellow, t_RM_red = 140, 30, 100
+        t_RB_green, t_RB_yellow, t_RB_red = 140, 30, 100
+
+        # map = {Intersection that filters: {DestinationGenerator : [Directions to send cars]}}
+        intersectionFilterMap = {"LM": {"RM": ["R", "BT"], "LM": ["L", "L"]},
+                                 "RM": {"LM": ["L", "BT"], "RM": ["R", "R"]},
+                                 "LB": {"RM": ["T", "RB"], "LM": ["T", "T"]},
+                                 "RB": {"LM": ["T", "RB"], "RM": ["T", "T"]},
+                                 "LT": {"RM": ["B", "RT"], "LM": ["B", "B"]},
+                                 "RT": {"LM": ["B", "LT"], "RM": ["B", "B"]}}
+        
+        # map = {Generator that generates cars : [Destination Generators for Cars]}
+        carGeneratorDestinations = {"LM" : ["RM"], 
+                                    "RM" : ["LM"]}
+
+        # / Horizontal Road Segments
+        # // Center segment
+        # /// Construct Main Street with Ped Crossing
+        pedestrianCrossing = self.addSubModel(PedestrianCrossingModel(avgCrossingsPerTenMinutes=120, avgCrossingSpeed = 1.4))
+        # IV. LR traffic 
+        sectionCenter_MainLeft_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_ML_LR", max_speed=30, length=lenCenter_M/2, initial_state=FLUID), "RoadC_ML_LR"))
+        sectionCenter_MainRight_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_MR_LR", max_speed=30, length=lenCenter_M/2, initial_state=FLUID), "RoadC_MR_LR"))
+        
+        # V. Car connect
+        self.connectPorts(sectionCenter_MainLeft_LR.OUT_CAR, sectionCenter_MainRight_LR.IN_CAR)
+        # V. Control connect
+        self.connectPorts(sectionCenter_MainLeft_LR.OUT_JAM, pedestrianCrossing.IN_NEXT_JAM_LR)
+        self.connectPorts(pedestrianCrossing.OUT_JAM_LR, sectionCenter_MainRight_LR.IN_NEXT_JAM)
+
+        # IV. RL Traffic
+        sectionCenter_MainRight_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_MR_RL", max_speed=30, length=lenCenter_M/2, initial_state=FLUID), "RoadC_MR_RL"))
+        sectionCenter_MainLeft_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_ML_RL", max_speed=30, length=lenCenter_M/2, initial_state=FLUID), "RoadC_ML_RL"))
+        
+        # V. Car Connect
+        self.connectPorts(sectionCenter_MainRight_RL.OUT_CAR, sectionCenter_MainLeft_RL.IN_CAR)
+        # V. Control Connect
+        self.connectPorts(sectionCenter_MainRight_RL.OUT_JAM, pedestrianCrossing.IN_NEXT_JAM_RL)
+        self.connectPorts(pedestrianCrossing.OUT_JAM_RL, sectionCenter_MainLeft_RL.IN_NEXT_JAM)
+        
+        # /// Connect Main Street to Intersections
+        intersectionRoadLM = self.addSubModel(IntersectionRoad(name="I_LM", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["LM"])))
+        intersectionRoadRM = self.addSubModel(IntersectionRoad(name="I_RM", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["RM"])))
+        intersectionLightLM = self.addSubModel(SimpleIntersectionLightModel(name="L_LM", hor_t_hGreen=t_LM_green, hor_t_hYellow=t_LM_yellow, hor_t_hRed=t_LM_red))
+        intersectionLightRM = self.addSubModel(SimpleIntersectionLightModel(name="L_RM", hor_t_hGreen=t_RM_green, hor_t_hYellow=t_RM_yellow, hor_t_hRed=t_RM_red))
+        # IV. LR traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLM.OUT_CAR_RIGHT, sectionCenter_MainLeft_LR.IN_CAR) 
+        self.connectPorts(sectionCenter_MainRight_LR.OUT_CAR, intersectionRoadRM.IN_CAR_LEFT)
+        # V. Control
+        self.connectPorts(intersectionLightRM.OUT_JAM_L, sectionCenter_MainRight_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionCenter_MainLeft_LR.OUT_JAM, intersectionLightLM.IN_NEXT_JAM_R)
+        
+
+        # IV. RL Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRM.OUT_CAR_LEFT, sectionCenter_MainRight_RL.IN_CAR) 
+        self.connectPorts(sectionCenter_MainLeft_RL.OUT_CAR, intersectionRoadLM.IN_CAR_RIGHT) 
+        # V. Control
+        self.connectPorts(intersectionLightLM.OUT_JAM_R, sectionCenter_MainLeft_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionCenter_MainRight_RL.OUT_JAM, intersectionLightRM.IN_NEXT_JAM_L)
+        
+        # /// Construct Left Street with Generator/Sink LM
+        # IV. carGenLM and LR traffic
+        carGeneratorLM = self.addSubModel(CarGeneratorModel(time_next_car=genAverageTime, identifier=1, pLocal=genPrecLocal, carDestinationMap = carGeneratorDestinations["LM"], useFixedTime=genUseFixedTime))
+        sectionCenter_Left_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_L_LR", max_speed=50, length=lenCenter_L, initial_state=FLUID), "RoadC_L_LR"))
+        
+        # IV. Car connect
+        self.connectPorts(carGeneratorLM.car_out, sectionCenter_Left_LR.IN_CAR)
+        # V. Control connect
+        self.connectPorts(sectionCenter_Left_LR.OUT_JAM, carGeneratorLM.IN_NEXT_JAM)
+
+        # IV. CarSinkLM and RL traffic
+        carSinkLM = self.addSubModel(CarSink(output_file='outfileLM.csv'))
+        sectionCenter_Left_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_L_RL", max_speed=50, length=lenCenter_L, initial_state=FLUID), "RoadC_L_RL"))
+        
+        # V. Car Connect
+        self.connectPorts(sectionCenter_Left_RL.OUT_CAR, carSinkLM.in_car)
+        # V. Control Connect
+        # Sink has none
+
+        # /// Connect sectionCenter_Left To IntersectionLM
+        # IV. Car Connect
+        self.connectPorts(sectionCenter_Left_LR.OUT_CAR, intersectionRoadLM.IN_CAR_LEFT)
+        self.connectPorts(intersectionRoadLM.OUT_CAR_LEFT, sectionCenter_Left_RL.IN_CAR)
+
+        # IV. Control Connect
+        self.connectPorts(intersectionLightLM.OUT_JAM_L, sectionCenter_Left_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionCenter_Left_RL.OUT_JAM, intersectionLightLM.IN_NEXT_JAM_L)
+
+        
+        # /// Construct Right Street with Generator/Sink RM
+        # IV. carGenRM and RL-traffic
+        carGeneratorRM = self.addSubModel(CarGeneratorModel(time_next_car=genAverageTime, identifier=2, pLocal=genPrecLocal, carDestinationMap = carGeneratorDestinations["RM"], useFixedTime=genUseFixedTime))
+        sectionCenter_Right_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_R_RL", max_speed=50, length=lenCenter_R, initial_state=FLUID), "RoadC_R_RL"))
+        
+        # V. Car connect
+        self.connectPorts(carGeneratorRM.car_out, sectionCenter_Right_RL.IN_CAR)
+        # V. Control connect
+        self.connectPorts(sectionCenter_Right_RL.OUT_JAM, carGeneratorRM.IN_NEXT_JAM)
+        
+        # IV. carSinkRM and LR-traffic
+        carSinkRM = self.addSubModel(CarSink(output_file='outfileRM.csv'))
+        sectionCenter_Right_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadC_L_LR", max_speed=50, length=lenCenter_R, initial_state=FLUID), "RoadC_L_LR"))
+        
+        # V. Car connect
+        self.connectPorts(sectionCenter_Right_LR.OUT_CAR, carSinkRM.in_car)
+        # V. Control connect
+        # Sink has none
+
+        # /// Connect Right To IntersectionRM
+        # IV. Car Connect
+        self.connectPorts(sectionCenter_Right_RL.OUT_CAR, intersectionRoadRM.IN_CAR_RIGHT)
+        self.connectPorts(intersectionRoadRM.OUT_CAR_RIGHT, sectionCenter_Right_LR.IN_CAR)
+
+        # IV. Control Connect
+        self.connectPorts(intersectionLightRM.OUT_JAM_R, sectionCenter_Right_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionCenter_Right_LR.OUT_JAM, intersectionLightRM.IN_NEXT_JAM_R)
+
+        # // Top Segment
+        # /// Connect IntersectionLT and IntersectionRT horizontal
+        # IV. Instantiate I_LT, I_RT, RoadT_H_LR, RoadT_H_RL
+        intersectionRoadLT = self.addSubModel(IntersectionRoad(name="I_LT", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["LT"])))
+        intersectionRoadRT = self.addSubModel(IntersectionRoad(name="I_RT", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["RT"])))
+        sectionTop_H_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadT_H_LR", max_speed=50, length=lenTop_H, initial_state=FLUID), "RoadT_H_LR"))
+        sectionTop_H_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadT_H_RL", max_speed=50, length=lenTop_H, initial_state=FLUID), "RoadT_H_RL"))
+        intersectionLightLT = self.addSubModel(SimpleIntersectionLightModel(name="L_LT", hor_t_hGreen=t_LT_green, hor_t_hYellow=t_LT_yellow, hor_t_hRed=t_LT_red))
+        intersectionLightRT = self.addSubModel(SimpleIntersectionLightModel(name="L_RT", hor_t_hGreen=t_RT_green, hor_t_hYellow=t_RT_yellow, hor_t_hRed=t_RT_red))
+        
+        # IV. LR Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLT.OUT_CAR_RIGHT, sectionTop_H_LR.IN_CAR)
+        self.connectPorts(sectionTop_H_LR.OUT_CAR, intersectionRoadRT.IN_CAR_LEFT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRT.OUT_JAM_L, sectionTop_H_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionTop_H_LR.OUT_JAM, intersectionLightLT.IN_NEXT_JAM_R)
+
+        # IV. RL Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRT.OUT_CAR_LEFT, sectionTop_H_RL.IN_CAR)
+        self.connectPorts(sectionTop_H_RL.OUT_CAR, intersectionRoadLT.IN_CAR_RIGHT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightLT.OUT_JAM_R, sectionTop_H_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionTop_H_RL.OUT_JAM, intersectionLightRT.IN_NEXT_JAM_L)
+
+        # /// Connect IntersectionLT and IntersectionRT top
+        sectionTop_T_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadT_T_LR", max_speed=50, length=lenTop_T, initial_state=FLUID), "RoadT_T_LR"))
+        sectionTop_T_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadT_T_RL", max_speed=50, length=lenTop_T, initial_state=FLUID), "RoadT_T_RL"))
+
+        # IV. LR Traffic 
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLT.OUT_CAR_TOP, sectionTop_T_LR.IN_CAR)
+        self.connectPorts(sectionTop_T_LR.OUT_CAR, intersectionRoadRT.IN_CAR_TOP)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRT.OUT_JAM_T, sectionTop_T_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionTop_T_LR.OUT_JAM, intersectionLightLT.IN_NEXT_JAM_T)
+
+        # IV. RL Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRT.OUT_CAR_TOP, sectionTop_T_RL.IN_CAR)
+        self.connectPorts(sectionTop_T_RL.OUT_CAR, intersectionRoadLT.IN_CAR_TOP)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightLT.OUT_JAM_T, sectionTop_T_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionTop_T_RL.OUT_JAM, intersectionLightRT.IN_NEXT_JAM_T)
+
+        # // Bot Segment
+        # /// Connect IntersectionLB and Intersection RB horizontal
+        # IV. Instantiate I_LB, I_RB, RoadB_H_LR, RoadB_H_RL
+        intersectionRoadLB = self.addSubModel(IntersectionRoad(name="I_LB", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["LB"])))
+        intersectionRoadRB = self.addSubModel(IntersectionRoad(name="I_RB", 
+                                                             state=IntersectionRoadState(
+                                                                 destinationMap = intersectionFilterMap["RB"])))
+        sectionBot_H_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadB_H_LR", max_speed=50, length=lenBot_H, initial_state=FLUID), "RoadB_H_LR"))
+        sectionBot_H_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadB_H_RL", max_speed=50, length=lenBot_H, initial_state=FLUID), "RoadB_H_RL"))
+        intersectionLightLB = self.addSubModel(SimpleIntersectionLightModel(name="L_LB", hor_t_hGreen=t_LB_green, hor_t_hYellow=t_LB_yellow, hor_t_hRed=t_LB_red))
+        intersectionLightRB = self.addSubModel(SimpleIntersectionLightModel(name="L_RB", hor_t_hGreen=t_RB_green, hor_t_hYellow=t_RB_yellow, hor_t_hRed=t_RB_red))
+        
+
+        # IV. LR Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLB.OUT_CAR_RIGHT, sectionBot_H_LR.IN_CAR)
+        self.connectPorts(sectionBot_H_LR.OUT_CAR, intersectionRoadRB.IN_CAR_LEFT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRB.OUT_JAM_L, sectionBot_H_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionBot_H_LR.OUT_JAM, intersectionLightLB.IN_NEXT_JAM_R)
+
+        # IV. RL Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRB.OUT_CAR_LEFT, sectionBot_H_RL.IN_CAR)
+        self.connectPorts(sectionBot_H_RL.OUT_CAR, intersectionRoadLB.IN_CAR_RIGHT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightLB.OUT_JAM_R, sectionBot_H_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionBot_H_RL.OUT_JAM, intersectionLightRB.IN_NEXT_JAM_L)
+
+        # /// Connect IntersectionLB and Intersection RB bot
+        sectionBot_B_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadB_B_LR", max_speed=50, length=lenBot_B, initial_state=FLUID), "RoadB_B_LR"))
+        sectionBot_B_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadB_B_RL", max_speed=50, length=lenBot_B, initial_state=FLUID), "RoadB_B_RL"))
+
+        # IV. LR Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLB.OUT_CAR_BOT, sectionBot_B_LR.IN_CAR)
+        self.connectPorts(sectionBot_B_LR.OUT_CAR, intersectionRoadRB.IN_CAR_BOT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRB.OUT_JAM_B, sectionBot_B_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionBot_B_LR.OUT_JAM, intersectionLightLB.IN_NEXT_JAM_B)
+
+        # IV. RL Traffic
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRB.OUT_CAR_BOT, sectionBot_B_RL.IN_CAR)
+        self.connectPorts(sectionBot_B_RL.OUT_CAR, intersectionRoadLB.IN_CAR_BOT)
+
+        # V. Control Connect
+        self.connectPorts(intersectionLightLB.OUT_JAM_B, sectionBot_B_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionBot_B_RL.OUT_JAM, intersectionLightLB.IN_NEXT_JAM_T)
+
+        # / Vertical Segments
+        # // Left side
+        # /// Connect IntersectionLB with IntersectionLM
+        sectionVert_LB_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_LB_LR", max_speed=50, length=lenVert_LB, initial_state=FLUID), "RoadV_LB_LR"))
+        sectionVert_LB_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_LB_RL", max_speed=50, length=lenVert_LB, initial_state=FLUID), "RoadV_LB_RL"))
+        
+
+        # IV. LR Traffic : Mid to Bot
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLM.OUT_CAR_BOT, sectionVert_LB_LR.IN_CAR)
+        self.connectPorts(sectionVert_LB_LR.OUT_CAR, intersectionRoadLB.IN_CAR_TOP)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightLB.OUT_JAM_T, sectionVert_LB_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_LB_LR.OUT_JAM, intersectionLightLM.IN_NEXT_JAM_B)
+
+        # IV. RL Traffic : Bot to Mid
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLB.OUT_CAR_TOP, sectionVert_LB_RL.IN_CAR)
+        self.connectPorts(sectionVert_LB_RL.OUT_CAR, intersectionRoadLM.IN_CAR_BOT)
+
+        # V. Control Connect
+        self.connectPorts(intersectionLightLM.OUT_JAM_B, sectionVert_LB_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_LB_RL.OUT_JAM, intersectionLightLB.IN_NEXT_JAM_T)
+
+
+        # /// Connect IntersectionLT with IntersectionLM
+        sectionVert_LT_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_LT_LR", max_speed=50, length=lenVert_LT, initial_state=FLUID), "RoadV_LT_LR"))
+        sectionVert_LT_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_LT_RL", max_speed=50, length=lenVert_LT, initial_state=FLUID), "RoadV_LT_RL"))
+        
+
+        # IV. LR Traffic : Mid to Top
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLM.OUT_CAR_TOP, sectionVert_LT_LR.IN_CAR)
+        self.connectPorts(sectionVert_LT_LR.OUT_CAR, intersectionRoadLT.IN_CAR_BOT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightLT.OUT_JAM_B, sectionVert_LT_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_LT_LR.OUT_JAM, intersectionLightLM.IN_NEXT_JAM_T)
+
+        # IV. RL Traffic : Top to Mid
+        # V. Car Connect
+        self.connectPorts(intersectionRoadLT.OUT_CAR_BOT, sectionVert_LT_RL.IN_CAR)
+        self.connectPorts(sectionVert_LT_RL.OUT_CAR, intersectionRoadLM.IN_CAR_TOP)
+
+        # V. Control Connect
+        self.connectPorts(intersectionLightLM.OUT_JAM_T, sectionVert_LT_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_LT_RL.OUT_JAM, intersectionLightLT.IN_NEXT_JAM_B)
+
+
+        # // Right side
+        # /// Connect IntersectionRB with IntersectionRM
+        sectionVert_RB_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_RB_LR", max_speed=50, length=lenVert_RB, initial_state=FLUID), "RoadV_RB_LR"))
+        sectionVert_RB_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_RB_RL", max_speed=50, length=lenVert_RB, initial_state=FLUID), "RoadV_RB_RL"))
+        
+
+        # IV. LR Traffic : Bot to Mid
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRB.OUT_CAR_TOP, sectionVert_RB_LR.IN_CAR)
+        self.connectPorts(sectionVert_RB_LR.OUT_CAR, intersectionRoadRM.IN_CAR_BOT)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRM.OUT_JAM_B, sectionVert_RB_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_RB_LR.OUT_JAM, intersectionLightRB.IN_NEXT_JAM_T)
+
+        # IV. RL Traffic : Mid to Bot
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRM.OUT_CAR_BOT, sectionVert_RB_RL.IN_CAR)
+        self.connectPorts(sectionVert_RB_RL.OUT_CAR, intersectionRoadRB.IN_CAR_TOP)
+
+        # V. Control Connect
+        self.connectPorts(intersectionLightRB.OUT_JAM_T, sectionVert_RB_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_RB_RL.OUT_JAM, intersectionLightRM.IN_NEXT_JAM_B)
+
+        # /// Connect IntersectionRT with IntersectionRM
+        sectionVert_RT_LR = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_RT_LR", max_speed=50, length=lenVert_RT, initial_state=FLUID), "RoadV_RT_LR"))
+        sectionVert_RT_RL = self.addSubModel(
+            RoadSectionModel(RoadSectionState(name="RoadV_RT_RL", max_speed=50, length=lenVert_RT, initial_state=FLUID), "RoadV_RT_RL"))
+        
+
+        # IV. LR Traffic : Top to Mid
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRT.OUT_CAR_BOT, sectionVert_RT_LR.IN_CAR)
+        self.connectPorts(sectionVert_RT_LR.OUT_CAR, intersectionRoadRM.IN_CAR_TOP)
+        
+        # V. Control Connect
+        self.connectPorts(intersectionLightRM.OUT_JAM_T, sectionVert_RT_LR.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_RT_LR.OUT_JAM, intersectionLightRT.IN_NEXT_JAM_B)
+
+        # IV. RL Traffic : Mid to Top
+        # V. Car Connect
+        self.connectPorts(intersectionRoadRM.OUT_CAR_TOP, sectionVert_RT_RL.IN_CAR)
+        self.connectPorts(sectionVert_RT_RL.OUT_CAR, intersectionRoadRT.IN_CAR_BOT)
+
+        # V. Control Connect
+        self.connectPorts(intersectionLightRT.OUT_JAM_B, sectionVert_RT_RL.IN_NEXT_JAM)
+        self.connectPorts(sectionVert_RT_RL.OUT_JAM, intersectionLightRM.IN_NEXT_JAM_T)
 
  

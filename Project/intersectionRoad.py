@@ -15,7 +15,7 @@ class IntersectionRoadState:
 
     def calculate_time_advance(self):
         if self.carInIntersection:
-            return 0
+            return 10 # small delay required to prevent collision. Is realistic.
         else:
             return INFINITY
         
