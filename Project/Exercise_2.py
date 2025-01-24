@@ -8,7 +8,7 @@ from roadsection import RoadSectionState, RoadSectionModel
 from trafficInterface import JAMMED, FLUID
 
 class SimpleRoadModel(CoupledDEVS):
-    def __init__(self):
+    def __init__(self, time_next_car = 0, output_file = "", light_timings =[], num_traffic_lights =0):
         """
         A simple road consisting of 5 road sections :
             Section 1 & 5 : 70kph, 2500m,

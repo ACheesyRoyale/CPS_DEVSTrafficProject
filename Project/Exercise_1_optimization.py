@@ -7,7 +7,7 @@ from roadsection import RoadSectionState, RoadSectionModel
 from trafficInterface import JAMMED_OUTPUT, FULL_JAM, JAMMED, FLUID, FULL_JAM_OUTPUT, JAMMED_TO_FULL_JAM
 
 class SimpleRoadModel(CoupledDEVS):
-    def __init__(self, time_next_car = 0, output_file = "", light_timings =[], num_traffic_lights =0):
+    def __init__(self):
         """
         A simple road consisting of 5 road sections :
             Section 1 & 5 : 70kph, 2500m,
@@ -33,8 +33,8 @@ class SimpleRoadModel(CoupledDEVS):
         self.sectionR5 = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="sectionR5", max_speed=70, length=2500, initial_state=FLUID), "sectionR5"))
         
-        self.carGeneratorR = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=1, useFixedTime = True))
-        self.carSinkR = self.addSubModel(CarSink(output_file='outfile.csv'))
+        self.carGeneratorR = self.addSubModel(CarGeneratorModel(time_next_car=500, identifier=1, useFixedTime = False))
+        self.carSinkR = self.addSubModel(CarSink(output_file='simpleH0.csv'))
         
         self.sectionL1 = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="sectionL1", max_speed=70, length=2500, initial_state=FLUID), "sectionL1"))
@@ -47,8 +47,8 @@ class SimpleRoadModel(CoupledDEVS):
         self.sectionL5 = self.addSubModel(
             RoadSectionModel(RoadSectionState(name="sectionL5", max_speed=70, length=2500, initial_state=FLUID), "sectionL5"))
         
-        self.carGeneratorL = self.addSubModel(CarGeneratorModel(time_next_car=100, identifier=2, useFixedTime= True))
-        self.carSinkL = self.addSubModel(CarSink(output_file='outfile.csv'))
+        self.carGeneratorL = self.addSubModel(CarGeneratorModel(time_next_car=500, identifier=2, useFixedTime = False))
+        self.carSinkL = self.addSubModel(CarSink(output_file='simpleH0.csv'))
 
         
         
