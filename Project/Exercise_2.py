@@ -152,8 +152,8 @@ class SimpleRoadModel(CoupledDEVS):
         self.carGeneratorL = self.addSubModel(CarGeneratorModel(time_next_car=10, identifier=2))
         self.carSinkL = self.addSubModel(CarSink(output_file='outfile.csv'))
 
-        self.pedestrianCrossing = self.addSubModel(PedestrianCrossingModel(avgCrossingsPerTenMinutes=120, avgCrossingSpeed = 1.4))
-        # self.pedestrianCrossingL = self.addSubModel(PedestrianCrossingModel(avgCrossingsPerTenMinutes=120, avgCrossingSpeed = 1.4))
+        #self.pedestrianCrossing = self.addSubModel(PedestrianCrossingModel(avgCrossingsPerTenMinutes=120, avgCrossingSpeed = 1.4))
+        self.pedestrianCrossing = self.addSubModel(LightCrossingModel(t_green=140, t_yellow=30, t_red=100))
 
         
         

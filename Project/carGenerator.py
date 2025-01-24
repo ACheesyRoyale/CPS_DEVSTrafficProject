@@ -129,7 +129,7 @@ class CarGeneratorState:
 
 
 class CarGeneratorModel(AtomicDEVS):
-    def __init__(self, time_next_car, identifier, num_cars = INFINITY, useFixedTime = True, pLocal = 0, carDestinationMap = []):
+    def __init__(self, time_next_car, identifier, num_cars = INFINITY, useFixedTime = True, pLocal = 0, carDestinationMap = [1]):
         AtomicDEVS.__init__(self, "CarGenerator"+str(identifier))
         self.car_out = self.addOutPort("car_out")
         self.IN_NEXT_JAM = self.addInPort("next_section_jam")
